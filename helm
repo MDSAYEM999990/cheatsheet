@@ -12,6 +12,17 @@ helm list
 আপনি যদি values.yaml ফাইলটি এডিট করেন (যেমন replicaCount ২ থেকে ৫ করলেন), তবে অ্যাপটি আপডেট করতে এই কমান্ডটি দেবেন:
 helm upgrade my-first-release ./my-website
 
+আপনি যদি আপনার ক্লাস্টার থেকে এই রিলিজটি মুছে ফেলতে চান, তবে কমান্ডটি হবে:
+helm uninstall my-first-release
+
+কমান্ড,কাজ কী?
+helm search repo <name>,অনলাইন রিপোজিটরি থেকে চার্ট খোঁজা।
+helm install <name> <chart>,ক্লাস্টারে নতুন একটি অ্যাপ (Release) চালু করা।
+helm list,আপনার ক্লাস্টারে বর্তমানে কী কী অ্যাপ চলছে তা দেখা।
+helm upgrade <name> <chart>,অ্যাপের কনফিগারেশন বা ভার্সন আপডেট করা।
+helm history <name>,একটি রিলিজের আগের সব ভার্সন বা পরিবর্তনের ইতিহাস দেখা।
+helm status <name>,রানিং অ্যাপটির বর্তমান অবস্থা এবং নোটস দেখা।
+
 # Chart.yaml
 
 apiVersion: v2
@@ -28,3 +39,7 @@ appVersion: "2.5.3"
 maintainers:
   - name: Karim Ahmed
     email: karim@example.com
+
+১. version (Chart Version): এটি হলো আপনার প্যাকেজিংয়ের ভার্সন। ধরুন, আপনি শুধু values.yaml বা কোনো টেমপ্লেট ফাইল একটু পরিবর্তন করেছেন, তখন আপনি এই ভার্সনটি আপডেট করবেন (যেমন: 0.1.0 থেকে 0.1.1)।
+
+২. appVersion (Application Version): এটি আপনার মূল সফটওয়্যারের ভার্সন। ধরুন, আপনার ডেভেলপার টিম অ্যাপের নতুন ফিচার রিলিজ করেছে এবং নতুন ডকার ইমেজ বানিয়েছে (v2.5.4), তখন আপনি এখানে সেই ভার্সনটি লিখে দেবেন।
