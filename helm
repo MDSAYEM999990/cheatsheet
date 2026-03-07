@@ -11,3 +11,20 @@ helm list
 
 আপনি যদি values.yaml ফাইলটি এডিট করেন (যেমন replicaCount ২ থেকে ৫ করলেন), তবে অ্যাপটি আপডেট করতে এই কমান্ডটি দেবেন:
 helm upgrade my-first-release ./my-website
+
+# Chart.yaml
+
+apiVersion: v2
+name: my-website
+description: A Helm chart for my e-commerce application
+type: application
+
+# এটি হলো চার্টের ভার্সন (Helm-এর জন্য)
+version: 0.1.0
+
+# এটি হলো আপনার আসল অ্যাপ্লিকেশনের ভার্সন (Docker Image-এর সাথে মিল থাকে)
+appVersion: "2.5.3"
+
+maintainers:
+  - name: Karim Ahmed
+    email: karim@example.com
