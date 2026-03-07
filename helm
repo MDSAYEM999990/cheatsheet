@@ -1,0 +1,1 @@
+helm install my-app-release ./my-chart -f values.yaml
