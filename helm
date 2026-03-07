@@ -1,1 +1,13 @@
-helm install my-app-release ./my-chart -f values.yaml
+helm install my-app-release ./my-chart -f values.yaml  
+
+কনফিগ ফাইলটি ব্যবহার করে আসলে কী জেনারেট করছে
+helm install my-app-release ./my-chart --dry-run --debug
+
+আপনার তৈরি করা চার্টে কোনো ভুল আছে কি না তা পরীক্ষা করতে নিচের কমান্ডটি দিন:
+helm lint ./my-
+
+আপনার ক্লাস্টারে বর্তমানে কোন কোন রিলিজ চলছে তা দেখতে এই কমান্ডটি ব্যবহার করুন
+helm list
+
+আপনি যদি values.yaml ফাইলটি এডিট করেন (যেমন replicaCount ২ থেকে ৫ করলেন), তবে অ্যাপটি আপডেট করতে এই কমান্ডটি দেবেন:
+helm upgrade my-first-release ./my-website
