@@ -30,15 +30,16 @@
 **`charts/common-lib/templates/_templates.tpl`**
 এখানে `if` কন্ডিশন ব্যবহার করা হয়েছে যাতে শুধুমাত্র প্রয়োজনীয় রিসোর্স তৈরি হয়।
 
-```yaml
-{{/* ১. মেইন ডিপ্লয়মেন্ট - এটি সবার জন্য কমন */}}
+{{/* ১. মেইন ডিপ্লয়মেন্ট - Enterprise Optimized */}}
 {{- define "common.deployment" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.replicaCount | default 1 }}
+  replicas: {{ .Values.replicaCount | default 2 }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -47,11 +48,44 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image }}
           ports:
             - containerPort: {{ .Values.service.port | default 80 }}
+          # Resources Management (Prevents OOMKilled and CPU Throttling)
+          resources:
+            {{- if .Values.resources }}
+            {{- toYaml .Values.resources | nindent 12 }}
+            {{- else }}
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            {{- end }}
+          # Health Checks
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath | default "/health" }}
+              port: {{ .Values.service.port | default 80 }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath | default "/health" }}
+              port: {{ .Values.service.port | default 80 }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
 {{- end -}}
 
 {{/* ২. কন্ডিশনাল সার্ভিস */}}
@@ -71,7 +105,7 @@ spec:
 {{- end -}}
 {{- end -}}
 
-{{/* ৩. কন্ডিশনাল ইনগ্রেস */}}
+{{/* ৩. কন্ডিশনাল ইনগ্রেস - Dynamic Host */}}
 {{- define "common.ingress" -}}
 {{- if .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
@@ -81,9 +115,10 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
 spec:
   rules:
-    - host: {{ .Values.ingress.host }}
+    - host: {{ .Values.ingress.host | default (printf "%s.%s" .Release.Name .Values.global.domainName) }}
       http:
         paths:
           - path: /
@@ -125,9 +160,20 @@ spec:
 **`apps/api-service/values.yaml`**
 এখানে আপনি বলে দেবেন এই অ্যাপের কী কী লাগবে।
 
-```yaml
 image: "my-repo/api-service:v1.2"
 replicaCount: 3
+
+# Karpenter scheduling (Spot instance example)
+nodeSelector:
+  karpenter.sh/capacity-type: spot
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
 
 service:
   enabled: true
@@ -137,6 +183,9 @@ ingress:
   enabled: true
   host: "api.mydomain.com"
 
+probes:
+  livenessPath: "/healthz"
+  readinessPath: "/ready"
 ```
 
 ---
@@ -147,7 +196,6 @@ ingress:
 
 **`argocd/applicationset.yaml`**
 
-```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -158,7 +206,7 @@ spec:
         repoURL: 'https://github.com/your-org/infra-repo.git'
         revision: HEAD
         directories:
-          - path: apps/* # এটি 'apps' ফোল্ডারের সব সাব-ফোল্ডার স্ক্যান করবে
+          - path: apps/*
   template:
     metadata:
       name: '{{path.basename}}'
@@ -169,10 +217,11 @@ spec:
         targetRevision: HEAD
         path: '{{path}}'
         helm:
-          # গ্লোবাল প্যারামিটার যা সব অ্যাপে অটোম্যাটিক সেট হবে
           parameters:
             - name: "global.clusterName"
               value: "prod-eks-01"
+            - name: "global.domainName"
+              value: "example.com"
       destination:
         server: 'https://kubernetes.default.svc'
         namespace: production
@@ -180,6 +229,8 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
 
 ```
 
