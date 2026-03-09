@@ -3,9 +3,8 @@ name: my-microservice
 description: A high-performance microservice for order processing.
 type: application
 version: 1.2.0
-appVersion: "2.4.5"
-kubeVersion: ">=1.22.0"
-
+appVersion: "2.4.5"  # আপনার ডকার ইমেজের ট্যাগ not use :latest😃❤️ here
+kubeVersion: ">=1.22.0"  (অর্থাৎ ১.২২.০ বা তার পরের যেকোনো ভার্সনে চলবে)   😊kubeVersion: ">=1.19.0-0 <1.26.0-0" 😊 kubeVersion: ">=1.19.0-0 <1.26.0-0" (অর্থাৎ ১.১৯ থেকে ১.২৬ এর নিচের ভার্সন পর্যন্ত সাপোর্ট করবে)
 maintainers:
   - name: DevOps Team
     email: devops@example.com
@@ -20,8 +19,22 @@ dependencies:
   - name: redis
     version: "17.3.14"
     repository: "https://charts.bitnami.com/bitnami"
-    condition: redis.enabled
+    condition: redis.enabled   (condition: এটি অত্যন্ত পাওয়ারফুল। আপনি যদি values.yaml ফাইলে redis.enabled: false করে দেন, তবে হেলম এই ডিপেন্ডেন্সিটি ইন্সটল করবে না।
 
 annotations:
   category: Infrastructure
   managed-by: Helm-Operator
+
+১. version (চার্ট ভার্সন - আবশ্যিক)
+এটি আপনার হেলম চার্টের নিজস্ব ভার্সন।
+
+কেন প্রয়োজন: যখন আপনি একটি চার্ট আপডেট করেন (যেমন: একটি নতুন Environment Variable যোগ করা বা Resource Limit পরিবর্তন করা), তখন এই ভার্সনটি পরিবর্তন করতে হয়।
+
+অটোমেশন: আপনি যদি ArgoCD বা অন্য কোনো GitOps টুল ব্যবহার করেন, তবে এই ভার্সনটি দেখে টুলটি বুঝতে পারে যে নতুন কোনো পরিবর্তন এসেছে যা ক্লাস্টারে অ্যাপ্লাই করতে হবে।
+
+রোলব্যাক (Rollback): যদি নতুন কনফিগারেশনে কোনো সমস্যা হয়, তবে আপনি পুরনো version-এ দ্রুত ফিরে যেতে পারবেন।
+
+২. appVersion (অ্যাপ্লিকেশন ভার্সন - ঐচ্ছিক কিন্তু গুরুত্বপূর্ণ)
+এটি নির্দেশ করে আপনার ডকার ইমেজের ভার্সন (যেমন: v1.2.5 বা latest)।
+
+কেন প্রয়োজন: এটি ডেভেলপার এবং অপারেশনস টিমের মধ্যে একটি যোগসূত্র তৈরি করে। চার্ট ভার্সন 1.0.0 হলেও আপনার অ্যাপ ভার্সন 2.5.0 হতে পারে। এটি helm list কমান্ড দিলেই দেখা যায়, যা ট্রাবলশুটিং-এ সাহায্য করে।
