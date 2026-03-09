@@ -30,63 +30,132 @@
 **`charts/common-lib/templates/_templates.tpl`**
 এখানে `if` কন্ডিশন ব্যবহার করা হয়েছে যাতে শুধুমাত্র প্রয়োজনীয় রিসোর্স তৈরি হয়।
 
-{{/* ১. মেইন ডিপ্লয়মেন্ট - ১০০% Enterprise Ready */}}
 {{- define "common.deployment" -}}
+
+{{- $port := .Values.containerPort | default (.Values.service.port | default 80) }}
+
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: {{ .Release.Name }}
   labels:
     app: {{ .Release.Name }}
+
 spec:
   replicas: {{ .Values.replicaCount | default 2 }}
+  revisionHistoryLimit: 5
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
   selector:
     matchLabels:
       app: {{ .Release.Name }}
+
   template:
     metadata:
       labels:
         app: {{ .Release.Name }}
+
+      {{- with .Values.podAnnotations }}
+      annotations:
+{{ toYaml . | nindent 8 }}
+      {{- end }}
+
     spec:
-      terminationGracePeriodSeconds: 30 {{/* Graceful Shutdown নিশ্চিত করার জন্য */}}
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsUser: {{ dig "podSecurityContext" "runAsUser" 1000 .Values }}
+        runAsGroup: {{ dig "podSecurityContext" "runAsGroup" 1000 .Values }}
+        fsGroup: {{ dig "podSecurityContext" "fsGroup" 2000 .Values }}
+
+      serviceAccountName: {{ dig "serviceAccount" "name" "default" .Values }}
+
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml . | nindent 8 }}
+      {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
+{{ toYaml . | nindent 8 }}
       {{- end }}
+
       {{- with .Values.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+{{ toYaml . | nindent 8 }}
       {{- end }}
+
+      {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | nindent 8 }}
+      {{- end }}
+
       containers:
         - name: {{ .Chart.Name }}
-          image: {{ .Values.image }}
+
+          image: {{ required "A valid image is required!" .Values.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy | default "IfNotPresent" }}
+
           ports:
-            - containerPort: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
-          # Resources Management
+            - containerPort: {{ $port }}
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ dig "security" "readOnlyRootFilesystem" false .Values }}
+
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep","5"]
+
+          {{- with .Values.env }}
+          env:
+{{ toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.envFrom }}
+          envFrom:
+{{ toYaml . | nindent 12 }}
+          {{- end }}
+
           resources:
-            {{- if .Values.resources }}
-            {{- toYaml .Values.resources | nindent 12 }}
-            {{- else }}
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
-            {{- end }}
-          # Health Checks
+{{ toYaml (.Values.resources | default (dict
+"requests" (dict "cpu" "100m" "memory" "128Mi")
+"limits" (dict "cpu" "200m" "memory" "256Mi"))) | nindent 12 }}
+
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.startupPath | default "/health" }}
+              port: {{ $port }}
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+
           livenessProbe:
             httpGet:
-              path: {{ if .Values.probes }}{{ .Values.probes.livenessPath | default "/health" }}{{ else }}"/health"{{ end }}
-              port: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
+              path: {{ .Values.probes.livenessPath | default "/health" }}
+              port: {{ $port }}
             initialDelaySeconds: 15
             periodSeconds: 20
+            timeoutSeconds: 2
+
           readinessProbe:
             httpGet:
-              path: {{ if .Values.probes }}{{ .Values.probes.readinessPath | default "/health" }}{{ else }}"/health"{{ end }}
-              port: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
+              path: {{ .Values.probes.readinessPath | default "/health" }}
+              port: {{ $port }}
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 2
+
 {{- end -}}
 
 {{/* ২. কন্ডিশনাল সার্ভিস */}}
