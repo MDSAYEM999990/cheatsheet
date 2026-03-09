@@ -1,0 +1,27 @@
+apiVersion: v2
+name: my-microservice
+description: A high-performance microservice for order processing.
+type: application
+version: 1.2.0
+appVersion: "2.4.5"
+kubeVersion: ">=1.22.0"
+
+maintainers:
+  - name: DevOps Team
+    email: devops@example.com
+    url: https://example.com/team
+
+keywords:
+  - microservice
+  - order-processing
+  - high-availability
+
+dependencies:
+  - name: redis
+    version: "17.3.14"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+
+annotations:
+  category: Infrastructure
+  managed-by: Helm-Operator
