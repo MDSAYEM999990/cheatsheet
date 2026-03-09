@@ -5,22 +5,29 @@
 আপনার গিট রিপোজিটরি বা মনো-রেপোতে ফাইলগুলো এভাবে সাজানো থাকবে:
 
 ```text
-.
+helm-charts/
 ├── charts/
-│   └── common-lib/              # আপনার কেন্দ্রীয় লাইব্রেরি চার্ট
-│       ├── Chart.yaml           # type: library
-│       └── templates/
-│           └── _templates.tpl   # সব রিসোর্সের মেইন লজিক
-├── apps/
-│   ├── api-service/             # অ্যাপ্লিকেশন ১ (সব রিসোর্স লাগবে)
-│   │   ├── Chart.yaml           # common-lib কে ডিপেন্ডেন্সি হিসেবে ধরবে
-│   │   └── values.yaml          # ingress.enabled: true
-│   └── worker-service/          # অ্যাপ্লিকেশন ২ (শুধু ডিপ্লয়মেন্ট লাগবে)
-│       ├── Chart.yaml
-│       └── values.yaml          # service.enabled: false, ingress.enabled: false
-└── argocd/
-    └── applicationset.yaml      # ১৫০০ অ্যাপ অটোমেট করার জন্য
-
+│   └── common/                # Shared library templates
+│       ├── templates/
+│       │   ├── deployment.yaml
+│       │   ├── service.yaml
+│       │   ├── ingress.yaml
+│       │   ├── hpa.yaml
+│       │   ├── pdb.yaml
+│       │   ├── configmap.yaml
+│       │   └── secret.yaml
+│       └── values.yaml
+└── apps/                       # Each microservice
+    ├── api-service/
+    │   ├── templates/
+    │   │   └── all-in-one.yaml
+    │   └── values.yaml
+    └── other-service/
+        ├── templates/
+        │   └── all-in-one.yaml
+        └── values.yaml
+argocd/
+└── applicationset.yaml         # GitOps for all apps
 ```
 
 ---
