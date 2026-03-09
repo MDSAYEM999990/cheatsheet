@@ -30,7 +30,7 @@
 **`charts/common-lib/templates/_templates.tpl`**
 এখানে `if` কন্ডিশন ব্যবহার করা হয়েছে যাতে শুধুমাত্র প্রয়োজনীয় রিসোর্স তৈরি হয়।
 
-{{/* ১. মেইন ডিপ্লয়মেন্ট - Enterprise Optimized */}}
+{{/* ১. মেইন ডিপ্লয়মেন্ট - ১০০% Enterprise Ready */}}
 {{- define "common.deployment" -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -48,6 +48,7 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      terminationGracePeriodSeconds: 30 {{/* Graceful Shutdown নিশ্চিত করার জন্য */}}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -60,8 +61,8 @@ spec:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image }}
           ports:
-            - containerPort: {{ .Values.service.port | default 80 }}
-          # Resources Management (Prevents OOMKilled and CPU Throttling)
+            - containerPort: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
+          # Resources Management
           resources:
             {{- if .Values.resources }}
             {{- toYaml .Values.resources | nindent 12 }}
@@ -76,21 +77,21 @@ spec:
           # Health Checks
           livenessProbe:
             httpGet:
-              path: {{ .Values.probes.livenessPath | default "/health" }}
-              port: {{ .Values.service.port | default 80 }}
+              path: {{ if .Values.probes }}{{ .Values.probes.livenessPath | default "/health" }}{{ else }}"/health"{{ end }}
+              port: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: {{ .Values.probes.readinessPath | default "/health" }}
-              port: {{ .Values.service.port | default 80 }}
+              path: {{ if .Values.probes }}{{ .Values.probes.readinessPath | default "/health" }}{{ else }}"/health"{{ end }}
+              port: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
             initialDelaySeconds: 5
             periodSeconds: 10
 {{- end -}}
 
 {{/* ২. কন্ডিশনাল সার্ভিস */}}
 {{- define "common.service" -}}
-{{- if .Values.service.enabled -}}
+{{- if and .Values.service .Values.service.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -105,9 +106,9 @@ spec:
 {{- end -}}
 {{- end -}}
 
-{{/* ৩. কন্ডিশনাল ইনগ্রেস - Dynamic Host */}}
+{{/* ৩. কন্ডিশনাল ইনগ্রেস */}}
 {{- define "common.ingress" -}}
-{{- if .Values.ingress.enabled -}}
+{{- if and .Values.ingress .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -127,10 +128,9 @@ spec:
               service:
                 name: {{ .Release.Name }}
                 port:
-                  number: {{ .Values.service.port | default 80 }}
+                  number: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
 {{- end -}}
 {{- end -}}
-
 ```
 
 ---
