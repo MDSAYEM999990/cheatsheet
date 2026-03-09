@@ -1,0 +1,187 @@
+আপনার ১৫০০+ মাইক্রোসার্ভিসের জন্য **ArgoCD** এবং **Library Chart** ব্যবহার করে একটি পূর্ণাঙ্গ কন্ডিশনাল আর্কিটেকচার নিচে দেওয়া হলো। এটি এমনভাবে ডিজাইন করা হয়েছে যাতে আপনি গিট রিপোজিটরির একটি মাত্র ভ্যালু পরিবর্তন করে রিসোর্স (Deployment, Service, Ingress) কন্ট্রোল করতে পারেন।
+
+### ১. প্রোজেক্ট স্ট্রাকচার (Full Structure)
+
+আপনার গিট রিপোজিটরি বা মনো-রেপোতে ফাইলগুলো এভাবে সাজানো থাকবে:
+
+```text
+.
+├── charts/
+│   └── common-lib/              # আপনার কেন্দ্রীয় লাইব্রেরি চার্ট
+│       ├── Chart.yaml           # type: library
+│       └── templates/
+│           └── _templates.tpl   # সব রিসোর্সের মেইন লজিক
+├── apps/
+│   ├── api-service/             # অ্যাপ্লিকেশন ১ (সব রিসোর্স লাগবে)
+│   │   ├── Chart.yaml           # common-lib কে ডিপেন্ডেন্সি হিসেবে ধরবে
+│   │   └── values.yaml          # ingress.enabled: true
+│   └── worker-service/          # অ্যাপ্লিকেশন ২ (শুধু ডিপ্লয়মেন্ট লাগবে)
+│       ├── Chart.yaml
+│       └── values.yaml          # service.enabled: false, ingress.enabled: false
+└── argocd/
+    └── applicationset.yaml      # ১৫০০ অ্যাপ অটোমেট করার জন্য
+
+```
+
+---
+
+### ২. লাইব্রেরি চার্ট কোড (`common-lib`)
+
+**`charts/common-lib/templates/_templates.tpl`**
+এখানে `if` কন্ডিশন ব্যবহার করা হয়েছে যাতে শুধুমাত্র প্রয়োজনীয় রিসোর্স তৈরি হয়।
+
+```yaml
+{{/* ১. মেইন ডিপ্লয়মেন্ট - এটি সবার জন্য কমন */}}
+{{- define "common.deployment" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image }}
+          ports:
+            - containerPort: {{ .Values.service.port | default 80 }}
+{{- end -}}
+
+{{/* ২. কন্ডিশনাল সার্ভিস */}}
+{{- define "common.service" -}}
+{{- if .Values.service.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.port | default 80 }}
+      targetPort: {{ .Values.service.port | default 80 }}
+  selector:
+    app: {{ .Release.Name }}
+{{- end -}}
+{{- end -}}
+
+{{/* ৩. কন্ডিশনাল ইনগ্রেস */}}
+{{- define "common.ingress" -}}
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+spec:
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.service.port | default 80 }}
+{{- end -}}
+{{- end -}}
+
+```
+
+---
+
+### ৩. অ্যাপ্লিকেশন চার্ট কোড (Example: `api-service`)
+
+**`apps/api-service/templates/all-in-one.yaml`**
+প্রতিটি অ্যাপের ভেতরে কোনো কোড থাকবে না, শুধু কল করা হবে।
+
+```yaml
+{{- include "common.deployment" . -}}
+---
+{{- include "common.service" . -}}
+---
+{{- include "common.ingress" . -}}
+
+```
+
+**`apps/api-service/values.yaml`**
+এখানে আপনি বলে দেবেন এই অ্যাপের কী কী লাগবে।
+
+```yaml
+image: "my-repo/api-service:v1.2"
+replicaCount: 3
+
+service:
+  enabled: true
+  port: 8080
+
+ingress:
+  enabled: true
+  host: "api.mydomain.com"
+
+```
+
+---
+
+### ৪. ArgoCD ApplicationSet (The Automation)
+
+১৫০০টি মাইক্রোসার্ভিসকে একটি কমান্ডে ম্যানেজ করার জন্য এই YAML-টি ArgoCD-তে ডেপ্লয় করুন।
+
+**`argocd/applicationset.yaml`**
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: eks-microservices
+spec:
+  generators:
+    - git:
+        repoURL: 'https://github.com/your-org/infra-repo.git'
+        revision: HEAD
+        directories:
+          - path: apps/* # এটি 'apps' ফোল্ডারের সব সাব-ফোল্ডার স্ক্যান করবে
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/your-org/infra-repo.git'
+        targetRevision: HEAD
+        path: '{{path}}'
+        helm:
+          # গ্লোবাল প্যারামিটার যা সব অ্যাপে অটোম্যাটিক সেট হবে
+          parameters:
+            - name: "global.clusterName"
+              value: "prod-eks-01"
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: production
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+
+```
+
+---
+
+### এই সমাধানের প্রধান সুবিধাসমূহ:
+
+* **১০০% DRY:** কোনো কোড রিপিট নেই। Deployment লজিক একবারই লেখা হয়েছে।
+* **সহজ মাইগ্রেশন:** যদি ইনগ্রেসের অ্যানোটেশন পরিবর্তন করতে হয়, শুধু `common-lib` এ একবার পরিবর্তন করবেন, ArgoCD ১৫০০ অ্যাপে তা পুশ করে দেবে।
+* **ফ্লেক্সিবিলিটি:** কোনো অ্যাপে সার্ভিস দরকার না হলে শুধু `values.yaml` এ `enabled: false` করে দিলেই হলো।
+* **অটো-ডিসকভারি:** নতুন মাইক্রোসার্ভিস যোগ করতে হলে শুধু `apps/` ফোল্ডারে নতুন একটি ফোল্ডার তৈরি করলেই ArgoCD সেটি নিজে থেকেই চিনে নেবে।
+
+আমি কি আপনার জন্য একটি **Base Values** ফাইল তৈরি করে দেব যা সব অ্যাপের জন্য ডিফল্ট CPU/Memory লিমিট সেট করে রাখবে? এটি আপনার ইকেএস (EKS) ক্লাস্টারের রিসোর্স অপ্টিমাইজেশনে সাহায্য করবে।
