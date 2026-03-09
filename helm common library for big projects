@@ -107,10 +107,18 @@ spec:
 
 ```yaml
 {{- include "common.deployment" . -}}
+
+{{- if .Values.service.enabled }}
 ---
 {{- include "common.service" . -}}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
 ---
 {{- include "common.ingress" . -}}
+{{- end }}
+
+
 
 ```
 
