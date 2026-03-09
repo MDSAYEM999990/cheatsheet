@@ -160,13 +160,13 @@ spec:
 
 {{/* ২. কন্ডিশনাল সার্ভিস */}}
 {{- define "common.service" -}}
-{{- if and .Values.service .Values.service.enabled -}}
+{{- if and .Values.service .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type | default "ClusterIP" }}
   ports:
     - port: {{ .Values.service.port | default 80 }}
       targetPort: {{ .Values.service.port | default 80 }}
@@ -177,13 +177,13 @@ spec:
 
 {{/* ৩. কন্ডিশনাল ইনগ্রেস */}}
 {{- define "common.ingress" -}}
-{{- if and .Values.ingress .Values.ingress.enabled -}}
+{{- if and .Values.ingress .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}
   annotations:
-    kubernetes.io/ingress.class: alb
+    kubernetes.io/ingress.class: {{ .Values.ingress.class | default "alb" }}
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 spec:
@@ -197,12 +197,90 @@ spec:
               service:
                 name: {{ .Release.Name }}
                 port:
-                  number: {{ if .Values.service }}{{ .Values.service.port | default 80 }}{{ else }}80{{ end }}
+                  number: {{ .Values.service.port | default 80 }}
 {{- end -}}
 {{- end -}}
 ```
 
 ---
+
+hpa.yaml (optional)
+{{- define "common.hpa" -}}
+{{- if .Values.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}
+  minReplicas: {{ .Values.hpa.minReplicas | default 2 }}
+  maxReplicas: {{ .Values.hpa.maxReplicas | default 10 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.cpuUtilization | default 50 }}
+{{- end -}}
+{{- end -}}
+
+--
+--
+pdb.yaml (recommended)
+{{- define "common.pdb" -}}
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-pdb
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+{{- end -}}
+{{- end -}}
+..
+--
+
+
+configmap.yaml
+
+# ConfigMap
+{{- define "common.configmap" -}}
+{{- if .Values.configmap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+{{- range $key, $value := .Values.configmap.data }}
+  {{ $key }}: "{{ $value }}"
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+
+---
+secret.yaml
+# Secret
+{{- define "common.secret" -}}
+{{- if .Values.secret.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-secret
+type: Opaque
+stringData:
+{{- range $key, $value := .Values.secret.data }}
+  {{ $key }}: "{{ $value }}"
+{{- end }}
+{{- end -}}
+{{- end -}}
 
 ### ৩. অ্যাপ্লিকেশন চার্ট কোড (Example: `api-service`)
 
@@ -222,6 +300,25 @@ spec:
 {{- include "common.ingress" . -}}
 {{- end }}
 
+{{- if .Values.hpa.enabled }}
+---
+{{- include "common.hpa" . -}}
+{{- end }}
+
+{{- if .Values.pdb.enabled }}
+---
+{{- include "common.pdb" . -}}
+{{- end }}
+
+{{- if .Values.configmap.enabled }}
+---
+{{- include "common.configmap" . -}}
+{{- end }}
+
+{{- if .Values.secret.enabled }}
+---
+{{- include "common.secret" . -}}
+{{- end }}
 
 
 ```
@@ -229,13 +326,113 @@ spec:
 **`apps/api-service/values.yaml`**
 এখানে আপনি বলে দেবেন এই অ্যাপের কী কী লাগবে।
 
+# -------------------------
+# Image & Replicas
+# -------------------------
 image: "my-repo/api-service:v1.2"
 replicaCount: 3
+imagePullPolicy: "IfNotPresent"
 
-# Karpenter scheduling (Spot instance example)
+# -------------------------
+# Pod security context
+# -------------------------
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 2000
+
+# -------------------------
+# Node scheduling for Karpenter
+# -------------------------
 nodeSelector:
   karpenter.sh/capacity-type: spot
+tolerations:
+  - key: "karpenter.sh/not-ready"
+    operator: "Exists"
+    effect: "NoSchedule"
 
+# -------------------------
+# Optional: Affinity
+# -------------------------
+affinity: {}
+
+# -------------------------
+# Service
+# -------------------------
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8080
+
+# -------------------------
+# Ingress
+# -------------------------
+ingress:
+  enabled: true
+  host: "api.mydomain.com"
+  class: alb
+
+# -------------------------
+# Probes
+# -------------------------
+probes:
+  startupPath: "/healthz"
+  livenessPath: "/health"
+  readinessPath: "/ready"
+
+# -------------------------
+# HPA (optional)
+# -------------------------
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuUtilization: 50
+
+# -------------------------
+# PDB (recommended)
+# -------------------------
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# -------------------------
+# Environment variables
+# -------------------------
+env:
+  - name: ENV
+    value: "production"
+  - name: LOG_LEVEL
+    value: "info"
+
+envFrom:
+  - configMapRef:
+      name: "{{ .Release.Name }}-config"
+  - secretRef:
+      name: "{{ .Release.Name }}-secret"
+
+# -------------------------
+# ConfigMap (optional)
+# -------------------------
+configmap:
+  enabled: true
+  data:
+    FEATURE_X_ENABLED: "true"
+    FEATURE_Y_ENABLED: "false"
+
+# -------------------------
+# Secret (optional)
+# -------------------------
+secret:
+  enabled: true
+  data:
+    DB_USERNAME: "myuser"
+    DB_PASSWORD: "mypassword"
+    API_KEY: "secret-api-key"
+
+# -------------------------
+# Resources
+# -------------------------
 resources:
   requests:
     cpu: 200m
@@ -244,17 +441,18 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-service:
-  enabled: true
-  port: 8080
+# -------------------------
+# Optional: Image pull secrets
+# -------------------------
+imagePullSecrets:
+  - name: my-registry-secret
 
-ingress:
-  enabled: true
-  host: "api.mydomain.com"
-
-probes:
-  livenessPath: "/healthz"
-  readinessPath: "/ready"
+# -------------------------
+# Optional: pod annotations
+# -------------------------
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
 ```
 
 ---
