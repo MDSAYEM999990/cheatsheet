@@ -192,16 +192,33 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "mylibchart.fullname" . }}
+  labels:
+    {{- include "mylibchart.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type | default "ClusterIP" }}
+  type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port | default 80 }}
-      targetPort: {{ .Values.service.port | default 80 }}
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
   selector:
-    app: {{ .Release.Name }}
-{{- end -}}
-{{- end -}}
+    {{- include "mylibchart.selectorLabels" . | nindent 4 }}
+
+####  serviceaccount.yaml
+{{- if .Values.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "mylibchart.serviceAccountName" . }}
+  labels:
+    {{- include "mylibchart.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+{{- end }}
 
 {{/* ৩. কন্ডিশনাল ইনগ্রেস */}}
 {{- define "common.ingress" -}}
