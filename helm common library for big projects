@@ -43,7 +43,6 @@ argocd/
 
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: {{ include "mylibchart.fullname" . }}
   labels:
@@ -51,7 +50,7 @@ metadata:
 
 spec:
   {{- if not .Values.autoscaling.enabled }}
-  relpicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.replicaCount }}
   {{- end }}
   revisionHistoryLimit: 5
 
@@ -61,68 +60,69 @@ spec:
       maxSurge: 1
       maxUnavailable: 0
 
-    selector:
+  selector:
     matchLabels:
       {{- include "mylibchart.selectorLabels" . | nindent 6 }}
 
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
         {{- include "mylibchart.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
     spec:
-  terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 30
 
-  # Service Account
-  serviceAccountName: {{ include "mylibchart.serviceAccountName" . }}
+      # Service Account
+      serviceAccountName: {{ include "mylibchart.serviceAccountName" . }}
 
-  # Pod-level securityContext (dig style safe default)
-  securityContext:
-    runAsUser: {{ dig "podSecurityContext" "runAsUser" 1000 .Values }}
-    runAsGroup: {{ dig "podSecurityContext" "runAsGroup" 1000 .Values }}
-    fsGroup: {{ dig "podSecurityContext" "fsGroup" 2000 .Values }}
+      # Pod-level securityContext
+      securityContext:
+        runAsUser: {{ dig "podSecurityContext" "runAsUser" 1000 .Values }}
+        runAsGroup: {{ dig "podSecurityContext" "runAsGroup" 1000 .Values }}
+        fsGroup: {{ dig "podSecurityContext" "fsGroup" 2000 .Values }}
 
-  # Image pull secrets
-  {{- with .Values.imagePullSecrets }}
-  imagePullSecrets:
-{{ toYaml . | nindent 8 }}
-  {{- end }}
+      # Image pull secrets
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
-  # Node scheduling
-  {{- with .Values.nodeSelector }}
-  nodeSelector:
-{{ toYaml . | nindent 8 }}
-  {{- end }}
+      # Node scheduling
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
-  # Tolerations for tainted nodes
-  {{- with .Values.tolerations }}
-  tolerations:
-{{ toYaml . | nindent 8 }}
-  {{- end }}
+      # Tolerations for tainted nodes
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
-  # Affinity rules for pod placement
-  {{- with .Values.affinity }}
-  affinity:
-{{ toYaml . | nindent 8 }}
-  {{- end }}
+      # Affinity rules for pod placement
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
       containers:
         - name: {{ .Chart.Name }}
-
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.imagePullPolicy | default "IfNotPresent" }}
+
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
 
+          # Container-level securityContext
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -137,52 +137,52 @@ spec:
 
           {{- with .Values.env }}
           env:
-{{ toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
 
           {{- with .Values.envFrom }}
           envFrom:
-{{ toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
 
           resources:
-{{ toYaml (.Values.resources | default (dict
-"requests" (dict "cpu" "100m" "memory" "128Mi")
-"limits" (dict "cpu" "200m" "memory" "256Mi"))) | nindent 12 }}
+            {{- toYaml (.Values.resources | default (dict
+              "requests" (dict "cpu" "100m" "memory" "128Mi")
+              "limits" (dict "cpu" "200m" "memory" "256Mi"))) | nindent 12 }}
 
- {{- with .Values.volumeMounts }}
+          {{- with .Values.volumeMounts }}
           volumeMounts:
-{{ toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
 
-  {{- with .Values.volumes }}
-      volumes:
-{{ toYaml . | nindent 8 }}
-      {{- end }}
-
           startupProbe:
-  httpGet:
-    path: {{ .Values.probes.startupPath | default "/health" }}
-    port: {{ $port }}
-  failureThreshold: {{ .Values.probes.startupFailureThreshold | default 30 }}
-  periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
-  timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 2 }}
+            httpGet:
+              path: {{ .Values.probes.startupPath | default "/health" }}
+              port: {{ $port }}
+            failureThreshold: {{ .Values.probes.startupFailureThreshold | default 30 }}
+            periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 2 }}
 
-livenessProbe:
-  httpGet:
-    path: {{ .Values.probes.livenessPath | default "/health" }}
-    port: {{ $port }}
-  initialDelaySeconds: {{ .Values.probes.livenessInitialDelay | default 15 }}
-  periodSeconds: {{ .Values.probes.livenessPeriod | default 20 }}
-  timeoutSeconds: {{ .Values.probes.livenessTimeout | default 2 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath | default "/health" }}
+              port: {{ $port }}
+            initialDelaySeconds: {{ .Values.probes.livenessInitialDelay | default 15 }}
+            periodSeconds: {{ .Values.probes.livenessPeriod | default 20 }}
+            timeoutSeconds: {{ .Values.probes.livenessTimeout | default 2 }}
 
-readinessProbe:
-  httpGet:
-    path: {{ .Values.probes.readinessPath | default "/health" }}
-    port: {{ $port }}
-  initialDelaySeconds: {{ .Values.probes.readinessInitialDelay | default 5 }}
-  periodSeconds: {{ .Values.probes.readinessPeriod | default 10 }}
-  timeoutSeconds: {{ .Values.probes.readinessTimeout | default 2 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath | default "/health" }}
+              port: {{ $port }}
+            initialDelaySeconds: {{ .Values.probes.readinessInitialDelay | default 5 }}
+            periodSeconds: {{ .Values.probes.readinessPeriod | default 10 }}
+            timeoutSeconds: {{ .Values.probes.readinessTimeout | default 2 }}
+
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
 {{- end -}}
 
