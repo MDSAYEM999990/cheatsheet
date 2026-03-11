@@ -116,11 +116,12 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
 
-          image: {{ required "A valid image is required!" .Values.image }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.imagePullPolicy | default "IfNotPresent" }}
-
           ports:
-            - containerPort: {{ $port }}
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
 
           securityContext:
             runAsNonRoot: true
@@ -149,29 +150,39 @@ spec:
 "requests" (dict "cpu" "100m" "memory" "128Mi")
 "limits" (dict "cpu" "200m" "memory" "256Mi"))) | nindent 12 }}
 
+ {{- with .Values.volumeMounts }}
+          volumeMounts:
+{{ toYaml . | nindent 12 }}
+          {{- end }}
+
+  {{- with .Values.volumes }}
+      volumes:
+{{ toYaml . | nindent 8 }}
+      {{- end }}
+
           startupProbe:
-            httpGet:
-              path: {{ .Values.probes.startupPath | default "/health" }}
-              port: {{ $port }}
-            failureThreshold: 30
-            periodSeconds: 10
-            timeoutSeconds: 2
+  httpGet:
+    path: {{ .Values.probes.startupPath | default "/health" }}
+    port: {{ $port }}
+  failureThreshold: {{ .Values.probes.startupFailureThreshold | default 30 }}
+  periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
+  timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 2 }}
 
-          livenessProbe:
-            httpGet:
-              path: {{ .Values.probes.livenessPath | default "/health" }}
-              port: {{ $port }}
-            initialDelaySeconds: 15
-            periodSeconds: 20
-            timeoutSeconds: 2
+livenessProbe:
+  httpGet:
+    path: {{ .Values.probes.livenessPath | default "/health" }}
+    port: {{ $port }}
+  initialDelaySeconds: {{ .Values.probes.livenessInitialDelay | default 15 }}
+  periodSeconds: {{ .Values.probes.livenessPeriod | default 20 }}
+  timeoutSeconds: {{ .Values.probes.livenessTimeout | default 2 }}
 
-          readinessProbe:
-            httpGet:
-              path: {{ .Values.probes.readinessPath | default "/health" }}
-              port: {{ $port }}
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 2
+readinessProbe:
+  httpGet:
+    path: {{ .Values.probes.readinessPath | default "/health" }}
+    port: {{ $port }}
+  initialDelaySeconds: {{ .Values.probes.readinessInitialDelay | default 5 }}
+  periodSeconds: {{ .Values.probes.readinessPeriod | default 10 }}
+  timeoutSeconds: {{ .Values.probes.readinessTimeout | default 2 }}
 
 {{- end -}}
 
