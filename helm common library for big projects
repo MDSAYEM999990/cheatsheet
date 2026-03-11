@@ -45,12 +45,14 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "mylibchart.fullname" . }}
   labels:
-    app: {{ .Release.Name }}
+    {{- include "mylibchart.labels" . | nindent 4 }}
 
 spec:
-  replicas: {{ .Values.replicaCount | default 2 }}
+  {{- if not .Values.autoscaling.enabled }}
+  relpicas: {{ .Values.replicaCount }}
+  {{- end }}
   revisionHistoryLimit: 5
 
   strategy:
