@@ -9,6 +9,7 @@ helm-charts/
 ├── charts/
 │   └── common/                # Shared library templates
 │       ├── templates/
+        ├── _helpers.tpl
 │       │   ├── deployment.yaml
 │       │   ├── service.yaml
 │       │   ├── ingress.yaml
@@ -16,6 +17,7 @@ helm-charts/
 │       │   ├── pdb.yaml
 │       │   ├── configmap.yaml
 │       │   └── secret.yaml
+         ── Chart.yaml
 │       └── values.yaml
 └── apps/                       # Each microservice
     ├── api-service/
