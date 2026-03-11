@@ -238,23 +238,35 @@ hpa.yaml (optional)
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Release.Name }}-hpa
+  name: {{ include "mylibchart.fullname" . }}
+  labels:
+    {{- include "mylibchart.labels" . | nindent 4 }}
+
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ .Release.Name }}
-  minReplicas: {{ .Values.hpa.minReplicas | default 2 }}
-  maxReplicas: {{ .Values.hpa.maxReplicas | default 10 }}
+    name: {{ include "mylibchart.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.hpa.cpuUtilization | default 50 }}
-{{- end -}}
-{{- end -}}
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
 
 --
 --
