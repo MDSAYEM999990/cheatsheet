@@ -1,0 +1,156 @@
+কমান্ড
+কাজ
+grep word file.txt
+ফাইলের ভিতরে word খুঁজে
+grep Mary mary*.txt
+mary দিয়ে শুরু সব ফাইলে Mary খুঁজে
+grep cow mary*.txt
+cow শব্দ কোন ফাইলে আছে দেখায়
+✅ সহজভাবে মনে রাখুন
+find → ফাইল খুঁজে
+grep → ফাইলের ভিতরের শব্দ খুঁজে
+
+তাহলে এবার grep কমান্ডের কিছু powerful ও বাস্তব উদাহরণ দেখি। এগুলো Linux ব্যবহারকারী ও system admin-রা প্রায়ই ব্যবহার করে।
+
+
+---
+
+1️⃣ Case-insensitive search (বড়/ছোট অক্ষর ধরবে না)
+
+grep -i mary file.txt
+
+এতে mary, Mary, MARY — সবই খুঁজে পাবে।
+
+
+---
+
+2️⃣ লাইন নম্বরসহ ফলাফল দেখানো
+
+grep -n error logfile.txt
+
+উদাহরণ আউটপুট:
+
+12:error connecting to server
+45:error reading file
+
+এখানে 12 এবং 45 হলো লাইন নম্বর।
+
+
+---
+
+3️⃣ একাধিক ফাইলে খোঁজা
+
+grep "error" *.log
+
+এতে সব .log ফাইলের ভিতরে error শব্দ খুঁজবে।
+
+
+---
+
+4️⃣ উল্টো ফলাফল দেখানো
+
+যেসব লাইনে শব্দটি নেই সেগুলো দেখাতে:
+
+grep -v error file.txt
+
+অর্থাৎ error নেই এমন লাইনগুলো দেখাবে।
+
+
+---
+
+5️⃣ পুরো শব্দ মিললে দেখানো
+
+grep -w cat animals.txt
+
+এতে শুধু cat শব্দ খুঁজবে।
+
+যেমন:
+
+cat ✔
+
+category ❌
+
+
+
+---
+
+6️⃣ পুরো ফোল্ডারে খোঁজা
+
+grep -r "hello" /home/user
+
+-r মানে recursive search
+
+অর্থাৎ সব সাবফোল্ডারেও খুঁজবে।
+
+
+
+---
+
+7️⃣ ম্যাচ হওয়া শব্দ হাইলাইট করা
+
+grep --color=auto error file.txt
+
+এতে error শব্দটি রঙ দিয়ে highlight হবে।
+
+
+---
+
+8️⃣ কতবার শব্দ আছে তা গণনা করা
+
+grep -c error logfile.txt
+
+উদাহরণ:
+
+5
+
+মানে ৫টি লাইনে error আছে।
+
+
+---
+
+9️⃣ শুধু ফাইলের নাম দেখানো
+
+grep -l error *.txt
+
+এতে শুধু যেসব ফাইলে error আছে তাদের নাম দেখাবে।
+
+
+---
+
+🔟 পাইপের সাথে ব্যবহার (খুব শক্তিশালী)
+
+ps aux | grep firefox
+
+এতে বর্তমানে Firefox process চলছে কিনা দেখা যাবে।
+
+| (pipe) ব্যবহার করে এক কমান্ডের আউটপুট অন্য কমান্ডে পাঠানো যায়।
+
+
+---
+
+সহজভাবে মনে রাখুন
+
+কমান্ড	কাজ
+
+grep word file	শব্দ খুঁজে
+grep -i	case ignore
+grep -n	লাইন নম্বর দেখায়
+grep -r	সব ফোল্ডারে খোঁজে
+grep -v	উল্টো ফলাফল
+
+
+
+---
+
+✅ Linux এ খুব জনপ্রিয় কম্বিনেশন
+
+find + grep + pipe
+
+উদাহরণ:
+
+find . -name "*.txt" | grep report
+
+
+---
+
+💡 আপনি চাইলে আমি Linux এর 20টা সবচেয়ে গুরুত্বপূর্ণ command (ls, cd, grep, find, chmod, ps, top ইত্যাদি) একদম beginner-friendly Bangla cheat sheet বানিয়ে দিতে পারি।
