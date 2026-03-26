@@ -1,0 +1,86 @@
+ঠিক আছে 👍 তাহলে আমরা touch কমান্ডের কিছু বাস্তব উদাহরণ দেখি।
+
+
+---
+
+১️⃣ নতুন খালি ফাইল তৈরি করা
+
+touch file1.txt
+
+এতে file1.txt নামে একটি empty file তৈরি হবে।
+
+যদি ফাইল আগে থেকেই থাকে, তাহলে শুধু তার timestamp আপডেট হবে।
+
+
+---
+
+২️⃣ একসাথে একাধিক ফাইল তৈরি করা
+
+touch file1.txt file2.txt file3.txt
+
+এতে একসাথে ৩টি ফাইল তৈরি হবে।
+
+
+---
+
+৩️⃣ নির্দিষ্ট সময় সেট করা
+
+touch -t 05070915 my_report.txt
+
+এর মানে:
+
+05 → মাস (May)
+
+07 → তারিখ
+
+09 → ঘণ্টা
+
+15 → মিনিট
+
+
+অর্থাৎ May 7, 9:15 AM।
+
+
+---
+
+৪️⃣ অন্য ফাইলের সময় কপি করা
+
+ধরা যাক file1.txt এর সময় file2.txt এ কপি করতে চান।
+
+touch -r file1.txt file2.txt
+
+এতে file2.txt এর timestamp হবে file1.txt এর মতো।
+
+
+---
+
+৫️⃣ শুধু access time পরিবর্তন করা
+
+touch -a file1.txt
+
+এতে শুধু access time পরিবর্তন হবে।
+
+
+---
+
+৬️⃣ শুধু modification time পরিবর্তন করা
+
+touch -m file1.txt
+
+এতে শুধু modification time পরিবর্তন হবে।
+
+
+---
+
+✅ সহজভাবে মনে রাখুন:
+
+কমান্ড	কাজ
+
+touch file.txt	খালি ফাইল তৈরি
+touch -t	নির্দিষ্ট সময় সেট
+touch -r	অন্য ফাইলের সময় কপি
+touch -a	access time পরিবর্তন
+touch -m	modification time পরিবর্তন
+
+
+ে
