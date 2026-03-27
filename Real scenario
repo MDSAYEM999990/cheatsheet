@@ -1,0 +1,3 @@
+Production server হঠাৎ করে down হয়ে গেছে এবং website কাজ করছে না। আপনি একজন DevOps engineer হিসেবে কীভাবে situation handle করবেন?”
+
+First I would confirm the incident using monitoring tools and basic checks like ping or curl. Then I would SSH into the server and check CPU, memory, disk usage, and running services. After that I would analyze application logs or container logs to identify the root cause. If the issue is caused by a recent deployment, I would roll back to the previous stable version. Once the system is stable, I would perform a root cause analysis and implement monitoring or alerts to prevent the issue in the future.
