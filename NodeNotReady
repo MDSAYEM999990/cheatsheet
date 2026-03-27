@@ -1,0 +1,215 @@
+Amazon Amazon EKS-এ যদি Node Status = NotReady দেখা যায়, তাহলে নিচের A → Z troubleshooting flow অনুসরণ করলে সাধারণত সমস্যাটা খুঁজে বের করা যায়।
+
+
+---
+
+🧭 EKS Node NotReady – A to Z Troubleshooting
+
+1️⃣ Node Status যাচাই
+
+প্রথমে node সত্যিই NotReady কিনা দেখো।
+
+kubectl get nodes
+
+যদি NotReady দেখায় তাহলে বিস্তারিত দেখো:
+
+kubectl describe node <node-name>
+
+এখানে Conditions এবং Events section-এ error থাকে।
+
+
+---
+
+2️⃣ Worker Node EC2 Status চেক
+
+Worker node আসলে একটি Amazon EC2 instance।
+
+AWS Console → EC2 → Instances
+
+চেক করো:
+
+Instance Running কিনা
+
+System status check 2/2 passed
+
+
+
+---
+
+3️⃣ IAM Role Policy চেক
+
+Node IAM Role-এ নিচের policy থাকতে হবে।
+
+Required policies:
+
+AmazonEKSWorkerNodePolicy
+
+AmazonEKS_CNI_Policy
+
+AmazonEC2ContainerRegistryReadOnly
+
+
+AWS Console → IAM → Roles → Node Role → Policies attach করো।
+
+
+---
+
+4️⃣ aws-auth ConfigMap চেক
+
+Node cluster-এ join করার জন্য aws-auth configmap দরকার।
+
+kubectl get configmap aws-auth -n kube-system -o yaml
+
+Example:
+
+mapRoles:
+- rolearn: arn:aws:iam::ACCOUNT-ID:role/EKSNodeRole
+  username: system:node:{{EC2PrivateDNSName}}
+  groups:
+    - system:bootstrappers
+    - system:nodes
+
+না থাকলে node Ready হবে না।
+
+
+---
+
+5️⃣ kube-system Pods চেক
+
+Cluster core components ঠিক আছে কিনা দেখো।
+
+kubectl get pods -n kube-system
+
+বিশেষ করে:
+
+aws-node
+
+kube-proxy
+
+coredns
+
+
+সব Running থাকা উচিত।
+
+
+---
+
+6️⃣ VPC CNI Plugin সমস্যা
+
+Networking handle করে Amazon VPC CNI।
+
+চেক করো:
+
+kubectl logs -n kube-system aws-node-xxxxx
+
+CNI সমস্যা হলে reinstall করো।
+
+
+---
+
+7️⃣ kubelet Service চেক
+
+Node-এ Kubelet চালু থাকতে হবে।
+
+EC2-তে SSH করে:
+
+sudo systemctl status kubelet
+
+বন্ধ থাকলে:
+
+sudo systemctl restart kubelet
+
+
+---
+
+8️⃣ Network / Security Group
+
+Control plane-এর সাথে communication দরকার।
+
+Security group-এ allow থাকতে হবে:
+
+Port	Purpose
+
+443	Kubernetes API
+10250	kubelet
+
+
+
+---
+
+9️⃣ Resource Pressure
+
+Node-এ resource শেষ হলে NotReady হয়।
+
+kubectl describe node <node-name>
+
+এগুলো দেখো:
+
+MemoryPressure
+
+DiskPressure
+
+PIDPressure
+
+
+সমাধান:
+
+Disk clean
+
+Instance upgrade
+
+
+
+---
+
+🔟 Node Logs
+
+শেষে logs দেখো।
+
+journalctl -u kubelet
+
+
+---
+
+⚡ Quick Command Checklist
+
+kubectl get nodes
+kubectl describe node <node>
+kubectl get pods -n kube-system
+kubectl logs -n kube-system aws-node-xxxxx
+sudo systemctl status kubelet
+
+
+---
+
+✅ সাধারণত EKS Node NotReady এর মূল কারণ:
+
+1. IAM Role ভুল
+
+
+2. aws-auth configmap নেই
+
+
+3. VPC CNI issue
+
+
+4. kubelet বন্ধ
+
+
+5. Security group block
+
+
+6. Disk বা memory pressure
+
+
+
+
+---
+
+👍 চাইলে আমি আরও দেখাতে পারি:
+
+Real Production Debugging (5 minute EKS node fix)
+
+EKS Node NotReady interview answer
+
+DevOps troubleshooting flowchart (যেটা interview-এ খুব কাজে লাগে)
