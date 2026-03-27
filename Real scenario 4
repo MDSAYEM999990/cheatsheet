@@ -1,0 +1,5 @@
+Interview Tip
+যদি প্রশ্ন আসে:
+“What monitoring solution would you use in production EKS cluster?”
+Answer:
+“In a large production EKS cluster, I would typically use Metrics Server for lightweight live metrics needed by HPA and kubectl top commands. For full monitoring, historical metrics, and alerting, I would use Prometheus with Grafana dashboards and Alertmanager. AWS CloudWatch is integrated for node, cluster, and ALB metrics. Additionally, logging and tracing tools like Fluentd or OpenTelemetry help with debugging production issues.”
