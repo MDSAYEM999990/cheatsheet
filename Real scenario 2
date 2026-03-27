@@ -1,0 +1,5 @@
+If CPU usage increases in my EKS cluster, first I check the monitoring dashboard such as CloudWatch or Prometheus to identify when the spike started. Then I run kubectl top nodes to see which node is experiencing high CPU usage. After that I use kubectl top pods to identify which pod is consuming the most CPU. Once the pod is identified, I check its logs and description using kubectl logs and kubectl describe pod to find the root cause. If necessary, I scale the deployment or restart the pods to stabilize the system and then analyze the root cause.
+
+✅ Interview tip:
+EKS troubleshooting flow সাধারণত এমন হয়:
+Monitoring → kubectl top nodes → kubectl top pods → logs → scale / fix
