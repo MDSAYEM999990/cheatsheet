@@ -1,0 +1,3 @@
+If I identify that the issue is at the node level, I first check the node status using kubectl describe node to see if there is any CPU, memory, or disk pressure. Then I check resource usage with kubectl top node and identify which pods are consuming resources. If the node is unstable, I would cordon the node to stop scheduling new pods and drain it so that pods move to other nodes. After stabilizing the cluster, I would investigate the root cause and take actions such as restarting or replacing the node.
+✅ DevOps mindset (important for interview)
+Detect → Isolate → Recover → Root Cause
